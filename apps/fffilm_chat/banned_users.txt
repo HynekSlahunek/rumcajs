@@ -1,0 +1,3 @@
+return {
+	--[113242045] = {message = "Blocked for flooding. Please wait a while."}, -- Preclik?
+}
