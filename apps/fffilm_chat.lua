@@ -96,15 +96,28 @@ user:
 ]]
 
 local function update_history(msgtext)
+	local history_prefix = "/home/fuxoft/work/web/fuxoft.cz/fffilm/ffchat/_nosync/log_telegram_"
 	assert(type(msgtext)=="string")
 	assert(#msgtext > 1)
+	local time = os.time()
 	local history = _M.history
-	local item = {text = msgtext, ts = os.time()}
+	local item = {text = msgtext, ts = time}
 	table.insert(history, item)
 	while #history > 100 do
 		table.remove(history,1)
 	end
 	SERIALIZE.save(history, HISTORY_FILENAME)
+
+	local tstruct = format_time(time)
+	local fname = history_prefix..tstruct.year.."_"..string.format("%02d",tstruct.month).."_"..string.format("%02d",tstruct.day)..".html"
+	local fd = assert(io.open(fname, "a+"))
+	fd:write("<div>")
+	fd:write(tstruct.hhmm)
+	fd:write(" ")
+	local escaped = msgtext:gsub("<","&lt")
+	fd:write(escaped)
+	fd:write("</div>\n")
+	fd:close()
 	return item
 end
 
@@ -154,6 +167,7 @@ local function user_command(user, text0)
 		for i = f, #history do
 			send_text(format_time(assert(history[i].ts)).hhmm.." "..history[i].text)
 		end
+		send_text("> Starší příspěvky jsou archivovány zde: http://fuxoft.cz/fffilm/ffchat/_nosync/")
 	elseif text == "/nick" then
 		local desired = text0:match("^/nick%s+(.*)$")
 		if not desired then
