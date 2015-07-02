@@ -15,7 +15,15 @@ local err_fun = function(errstat)
     LOG.error(tback)
 end
 
-_M.add_pthread = function(fn,a,b,c,d,e)
+_M.add_pthread = function(id,fn,a,b,c,d,e)
+    assert(type(id)=="string", "Missing string id when calling TASKER.add_pthread().")
+
+    local err_fun = function(errstat)
+        local tback = debug.traceback(errstat)
+        tback = tback:gsub("/home/fuxoft/work/web/private/rumcajs/", "..../")
+        RUMCAJS.i_died(id,tback)
+    end
+
     local pfun = function()
         return fn(a,b,c,d,e)
     end

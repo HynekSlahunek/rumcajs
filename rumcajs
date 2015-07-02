@@ -1,0 +1,35 @@
+#!/usr/bin/env luajit
+
+local function main()
+	local logfile = "/var/tmp/rumcajs.log"
+	local starter = "/home/fuxoft/work/web/private/rumcajs/start.lua"
+
+	local runwhere = assert(dofile("/home/fuxoft/.private.lua").runwhere)
+
+	local log = function(txt)
+		if runwhere == "kompost" then --Bezim na serveru
+			local fd = assert(io.open(logfile,"a+"))
+			fd:write(txt)
+			fd:write("\n")
+			fd:close()
+		else --Bezim doma
+			print(txt)
+		end
+	end
+
+	while true do
+		log(os.date().." ***** Rumcajs starting at "..runwhere..".")
+		if runwhere == "kompost" then
+			starter = "stdbuf -i0 -o0 -e0 "..starter.. " >> "..logfile --.." 2>&1"
+		end
+		local code = os.execute(starter)
+		if code == 1 or code == 1*256 then --Abort, no restart
+			log(os.date().." ***** Abort requested, not restarting!")
+			break
+		end
+		log(os.date().." ***** Waiting 3 seconds.")
+		assert(0 == os.execute("sleep 3"))
+	end
+end
+
+main()

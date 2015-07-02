@@ -1,3 +1,3 @@
 return {
-	[70045183] = {name = "František Fuka"},
+	[70045183] = {name = "František Fuka", is_god = true},
 }

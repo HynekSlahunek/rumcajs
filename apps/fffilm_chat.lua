@@ -18,7 +18,11 @@ local function format_time(time)
 	return struct
 end
 
-local BOT_KEY = assert(dofile("/home/fuxoft/.private.lua").telegram.fffilmchatbot)
+local priv = dofile("/home/fuxoft/.private.lua")
+local BOT_KEY = assert(priv.telegram.fffilmchatbot)
+if priv.runwhere == "fuxoft" then
+	BOT_KEY = assert(priv.telegram.anonchatbot)
+end
 local function telegram_poll()
 	local maybe_offset = ""
 	local offset = _M.last_update_id
@@ -26,8 +30,15 @@ local function telegram_poll()
 		offset = tonumber(offset) + 1
 		maybe_offset = "&offset="..offset
 	end
-	local txt, err = TASKER.http_request(string.format("https://api.telegram.org/bot%s/getUpdates?timeout=10%s", BOT_KEY,maybe_offset))
+	local timeout = 10
+	if _M.please_restart then
+		timeout = 1
+	end
+	local txt, err = TASKER.http_request(string.format("https://api.telegram.org/bot%s/getUpdates?timeout=%s%s", BOT_KEY,timeout,maybe_offset))
 	--sock:send(string.format("GET /bot%s/getUpdates?timeout=10%s HTTP/1.0\r\n\r\n", BOT_KEY,maybe_offset))
+	if _M.please_restart then --This must be here because "/restart" command must be acknowledged before quitting
+		os.exit(tonumber(_M.please_restart))
+	end
 	return txt, err
 end
 
@@ -56,10 +67,10 @@ local function telegram_post(args)
 end
 
 local function actually_send_messages()
-	local msgs = assert(_M.messages_to_send)
+	local msgs = _M.messages_to_send or {}
 	_M.messages_to_send = {}
 	LOG.debug("Actually sending "..#msgs.." messages.")
-	TASKER.add_pthread(function()
+	TASKER.add_pthread("ffchat_message_sender", function()
 		for i, msgitem in ipairs (msgs) do
 			telegram_post(msgitem)
 		end
@@ -159,12 +170,15 @@ local function user_command(user, text0)
 		send_message{receiver = assert(user.id), text = txt}
 	end
 	local text = text0:match("^(/%S+)") or "/"
+	local history_num = 5
+	local registered_users = SERIALIZE.load(MY_DIR.."registered_users.txt")
+	local is_god = (registered_users[user.id] or {}).is_god
 	if text == "/" or text == "/start" then
-		send_text("> Příkazy jsou následující:\n/hist = Vypíše posledních 20 příspěvků\n/nick xy = Změní tvou přezdívku na xy (nebo dá náhodnou, pokud vynecháš 'xy')\n/bye = Přestane ti posílat všechny zprávy z chatu\n/echo = Přestane ti posílat zpět tebou napsané veřejné zprávy.\n> Nyní máš přezdívku "..user.name..".")
+		send_text("> Příkazy jsou následující:\n/hist = Vypíše posledních "..history_num.." příspěvků\n/nick xy = Změní tvou přezdívku na xy (nebo dá náhodnou, pokud vynecháš 'xy')\n/bye = Přestane ti posílat všechny zprávy z chatu\n/echo = Přestane ti posílat zpět tebou napsané veřejné zprávy.\n> Nyní máš přezdívku "..user.name..".")
 	elseif text == "/hist" then
-		send_text("> Posledních 20 příspěvků:")
+		send_text("> Posledních "..history_num.." příspěvků:")
 		local history = _M.history
-		local f = math.max(#history - 19, 1)
+		local f = math.max(#history - history_num + 1, 1)
 		for i = f, #history do
 			send_text(format_time(assert(history[i].ts)).hhmm.." "..history[i].text)
 		end
@@ -174,10 +188,8 @@ local function user_command(user, text0)
 		if not desired then
 			desired = random_name()
 		elseif desired == "*" then
-			local registered = SERIALIZE.load(MY_DIR.."registered_users.txt")
-			--print("User "..user.id.." is registered?")
-			if registered[user.id] then
-				desired = "*" .. assert(registered[user.id].name)
+			if registered_users[user.id] then
+				desired = "*" .. assert(registered_users[user.id].name)
 			else
 				send_text("> Hahahaha.")
 				return
@@ -206,6 +218,14 @@ local function user_command(user, text0)
 		user.noecho = not user.noecho
 	elseif text == "/UnsupportedMessageVole" then
 		send_text("> Tento typ zprávy není zatím podporován, sorry.")
+	elseif is_god and text == "/restart" then
+		LOG.info("God command = restart")
+		_M.please_restart = 2
+		send_text("RESTARTING")
+	elseif is_god and text == "/abort" then
+		LOG.info("God command = abort")
+		_M.please_restart = 1
+		send_text("ABORTING")
 	else
 		send_text("> Neznámý příkaz "..text..". Seznam všech příkazů zobrazíš odesláním samotného lomítka.")
 	end
@@ -274,7 +294,7 @@ _M.start = function()
 	LOG.debug("Starting telegram polling")
 
 	while true do
-		local txt,status = telegram_poll(stunnel)
+		local txt,status = telegram_poll()
 		if status == 200 then
 			local jsontxt = txt
 			local stat,json = CJSON.decode(jsontxt)
