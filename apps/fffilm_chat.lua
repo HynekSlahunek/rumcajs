@@ -63,7 +63,7 @@ local function actually_send_messages()
 		for i, msgitem in ipairs (msgs) do
 			telegram_post(msgitem)
 		end
-		LOG.debug("Sent messages.")
+		--LOG.debug("Sent messages.")
 	end)
 end
 
