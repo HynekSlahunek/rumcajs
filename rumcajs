@@ -23,7 +23,7 @@ local function main()
 			starter = "stdbuf -i0 -o0 -e0 "..starter.. " >> "..logfile --.." 2>&1"
 		end
 		local code = os.execute(starter)
-		if code == 1 or code == 1*256 then --Abort, no restart
+		if int(code / 256) == 1 then --Abort, no restart
 			log(os.date().." ***** Abort requested, not restarting!")
 			break
 		end
