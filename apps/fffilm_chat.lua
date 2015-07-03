@@ -69,21 +69,24 @@ end
 local function do_queued_tasks()
 	local queue = assert(_M.queued_tasks)
 	_M.queued_tasks = {}
-	LOG.debug("Launching "..#queue.." queued tasks.")
 	TASKER.add_pthread("ffchat_queued_tasks_launcher", function()
+		local nsync,nasync = 0,0
+		LOG.debug("Launching "..#queue.." queued tasks.")
 		for i, task in ipairs (queue) do
 			LOG.debug("%s: %s", i, (task.id or "[sync]"))
 			if task.sync_fun then
 				assert(not task.id)
 				task.sync_fun()
+				nsync = nsync + 1
 			else
 				assert(task.async_fun)
 				assert(task.id)
 				TASKER.add_pthread(task.id, task.async_fun)
+				nasync = nasync + 1
 			end
 		end
+		LOG.debug("Launched %s async, %s sync",nasync,nsync)
 	end)
-	LOG.debug("Queue done.")
 end
 
 local function queue_sync_task(fun)
