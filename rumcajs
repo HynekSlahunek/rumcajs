@@ -23,7 +23,7 @@ local function main()
 			starter = starter.. " >> "..logfile --.." 2>&1"
 		end
 		local code = os.execute(starter)
-		if math.floor(code / 256) == 1 then --Abort, no restart
+		if math.floor(code / 256) == 100 then --Abort, no restart
 			log(os.date().." ***** Abort requested, not restarting!")
 			break
 		end

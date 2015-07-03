@@ -71,9 +71,8 @@ local function do_queued_tasks()
 	_M.queued_tasks = {}
 	TASKER.add_pthread("ffchat_queued_tasks_launcher", function()
 		local nsync,nasync = 0,0
-		LOG.debug("Launching "..#queue.." queued tasks.")
 		for i, task in ipairs (queue) do
-			LOG.debug("%s: %s", i, (task.id or "[sync]"))
+			--LOG.debug("%s: %s", i, (task.id or "[sync]"))
 			if task.sync_fun then
 				assert(not task.id)
 				task.sync_fun()
@@ -85,7 +84,7 @@ local function do_queued_tasks()
 				nasync = nasync + 1
 			end
 		end
-		LOG.debug("Launched %s async, %s sync",nasync,nsync)
+		LOG.debug("Launched %s queued tasks (%s async, %s sync).",nasync+nsync,nasync,nsync)
 	end)
 end
 
@@ -184,7 +183,7 @@ local function random_name()
 end
 
 local function user_command(user, text0)
-	local send_text = function(txt)
+	local reply_text = function(txt)
 		queue_sync_task(function()
 			send_text_message(txt, assert(user.id))
 		end)
@@ -194,15 +193,15 @@ local function user_command(user, text0)
 	local registered_users = SERIALIZE.load(MY_DIR.."registered_users.txt")
 	local is_god = (registered_users[user.id] or {}).is_god
 	if text == "/" or text == "/start" then
-		send_text("> Příkazy jsou následující:\n/hist = Vypíše posledních "..history_num.." příspěvků\n/nick xy = Změní tvou přezdívku na xy (nebo dá náhodnou, pokud vynecháš 'xy')\n/bye = Přestane ti posílat všechny zprávy z chatu\n/echo = Přestane ti posílat zpět tebou napsané veřejné zprávy.\n> Nyní máš přezdívku "..user.name..".")
+		reply_text("> Příkazy jsou následující:\n/hist = Vypíše posledních "..history_num.." příspěvků\n/nick xy = Změní tvou přezdívku na xy (nebo dá náhodnou, pokud vynecháš 'xy')\n/bye = Přestane ti posílat všechny zprávy z chatu\n/echo = Přestane ti posílat zpět tebou napsané veřejné zprávy.\n> Nyní máš přezdívku "..user.name..".")
 	elseif text == "/hist" then
-		send_text("> Posledních "..history_num.." příspěvků:")
+		reply_text("> Posledních "..history_num.." příspěvků:")
 		local history = _M.history
 		local f = math.max(#history - history_num + 1, 1)
 		for i = f, #history do
-			send_text(format_time(assert(history[i].ts)).hhmm.." "..history[i].text)
+			reply_text(format_time(assert(history[i].ts)).hhmm.." "..history[i].text)
 		end
-		send_text("> Starší příspěvky jsou archivovány zde: http://fuxoft.cz/fffilm/ffchat/_nosync/")
+		reply_text("> Starší příspěvky jsou archivovány zde: http://fuxoft.cz/fffilm/ffchat/_nosync/")
 	elseif text == "/nick" then
 		local desired = text0:match("^/nick%s+(.*)$")
 		if not desired then
@@ -211,43 +210,57 @@ local function user_command(user, text0)
 			if registered_users[user.id] then
 				desired = "*" .. assert(registered_users[user.id].name)
 			else
-				send_text("> Hahahaha.")
+				reply_text("> Hahahaha.")
 				return
 			end
 		else
 			if desired:match("[^a-zA-Z]") then
-				send_text("> Přezdívka musí obsahovat pouze písmena bez diakritiky")
+				reply_text("> Přezdívka musí obsahovat pouze písmena bez diakritiky")
 				return
 			end
 			if not (#desired <= 20 and #desired >=3) then
-				send_text("> Přezdívka musí mít 3 až 20 znaků")
+				reply_text("> Přezdívka musí mít 3 až 20 znaků")
 				return
 			end
 		end
 		user.name = desired
-		send_text("> Přezdívka změněna. Nyní jsi "..desired)
+		reply_text("> Přezdívka změněna. Nyní jsi "..desired)
 	elseif text == "/bye" then
 		_M.users[assert(user.id)]=false
-		send_text("> OK. Další zprávy z chatu ti NEBUDOU POSÍLÁNY dokud mi nepošleš zprávu (libovolnou)!")
+		reply_text("> OK. Další zprávy z chatu ti NEBUDOU POSÍLÁNY, dokud mi nepošleš zprávu (libovolnou)!")
 	elseif text == "/echo" then
 		if user.noecho then
-			send_text("> Tebou odeslané veřejné zprávy nyní BUDEŠ dostávat pro kontrolu zpět. Pokud je nebudeš chtít dostávat, použij znovu příkaz /echo.")
+			reply_text("> Tebou odeslané veřejné zprávy nyní BUDEŠ dostávat pro kontrolu zpět. Pokud je nebudeš chtít dostávat, použij znovu příkaz /echo.")
 		else
-			send_text("> Tebou odeslané veřejné zprávy nyní NEBUDEŠ dostávat pro kontrolu zpět. Pokud je opět budeš chtít dostávat, použij znovu příkaz /echo.")
+			reply_text("> Tebou odeslané veřejné zprávy nyní NEBUDEŠ dostávat pro kontrolu zpět. Pokud je opět budeš chtít dostávat, použij znovu příkaz /echo.")
 		end
 		user.noecho = not user.noecho
-	elseif text == "/UnsupportedMessageVole" then
-		send_text("> Tento typ zprávy není zatím podporován, sorry.")
 	elseif is_god and text == "/restart" then
 		LOG.info("God command = restart")
-		_M.please_restart = 2
-		send_text("RESTARTING")
+		_M.please_restart = 101
+		reply_text("RESTARTING")
 	elseif is_god and text == "/abort" then
 		LOG.info("God command = abort")
-		_M.please_restart = 1
-		send_text("ABORTING")
+		_M.please_restart = 100
+		reply_text("ABORTING")
 	else
-		send_text("> Neznámý příkaz "..text..". Seznam všech příkazů zobrazíš odesláním samotného lomítka.")
+		reply_text("> Neznámý příkaz "..text..". Seznam všech příkazů zobrazíš odesláním samotného lomítka.")
+	end
+end
+
+local function handle_nontext_message(update, sender)
+	local sender_id = assert(sender.id)
+	local reply_text = function(txt)
+		queue_sync_task(function()
+			send_text_message(txt, sender_id)
+		end)
+	end
+	if update.message.sticker then
+		local sticker = assert(update.message.sticker)
+		local file_id = assert(sticker.file_id)
+		reply_text ("> Stickers coming soon...")
+	else
+		reply_text("> Tento druh souboru není (zatím) podporován.")
 	end
 end
 
@@ -256,7 +269,7 @@ local function handle_incoming_json(args)
 	local jsontxt = assert(args.incoming_jsontxt)
 	--print(jsontxt)
 	if not json.ok then
-		LOG.warn("Json not OK")
+		LOG.warn("Json doesn't have ok=true: %s", jsontxt)
 		return
 	end
 	local result = assert(json.result)
@@ -264,13 +277,8 @@ local function handle_incoming_json(args)
 		return
 	end
 	for i, update in ipairs(result) do
-		if not update.message.text then
-			LOG.warn("No text message found: "..jsontxt)
-		end
-
-		local msgtxt = update.message.text or "/UnsupportedMessageVole"
 		local sender_id = assert(update.message.from.id)
-		LOG.info("Got text message from "..sender_id..": "..msgtxt)
+
 		local user = _M.users[sender_id]
 		if not user then
 			user = {name = random_name(), id = sender_id}
@@ -279,29 +287,36 @@ local function handle_incoming_json(args)
 		user.ts = os.time()
 		SERIALIZE.save(_M.users,USERS_FILENAME)
 
-		local banned = SERIALIZE.load(MY_DIR.."banned_users.txt")
-		if banned[sender_id] then
-			local text = "> "..(banned[sender_id].message or "Problem. Please contact admin.")
-			send_message{receiver = sender_id, text = text}
-			LOG.info("User "..sender_id.. " banned: "..text)
-		else
+		local msgtxt = update.message.text
+		if not msgtxt then
+			handle_nontext_message(update, user)
+		else --text message
+			LOG.info("Got text message from "..sender_id..": "..msgtxt)
 
-			if msgtxt:match("^/") then
-				user_command(user, msgtxt)
-			else --Normal message
-				local name = assert(user.name)
-				local fulltext = name..": "..msgtxt
-				local added = update_history(fulltext)
-				local fulltext = format_time(added.ts).hhmm.." "..fulltext
-				local excluded = {}
-				if user.noecho then
-					excluded[sender_id] = true
-				end
-				for rcvid, rcv in pairs(_M.users) do
-					if rcv and not (rcv.quiet) and not excluded[rcvid] then
-						queue_async_task("text_to_"..rcvid, function()
-							send_text_message (fulltext, rcvid)
-						end)
+			local banned = SERIALIZE.load(MY_DIR.."banned_users.txt")
+			if banned[sender_id] then
+				local text = "> "..(banned[sender_id].message or "Problem. Please contact admin.")
+				send_message{receiver = sender_id, text = text}
+				LOG.info("User "..sender_id.. " banned: "..text)
+			else
+
+				if msgtxt:match("^/") then
+					user_command(user, msgtxt)
+				else --Normal message
+					local name = assert(user.name)
+					local fulltext = name..": "..msgtxt
+					local added = update_history(fulltext)
+					local fulltext = format_time(added.ts).hhmm.." "..fulltext
+					local excluded = {}
+					if user.noecho then
+						excluded[sender_id] = true
+					end
+					for rcvid, rcv in pairs(_M.users) do
+						if rcv and not (rcv.quiet) and not excluded[rcvid] then
+							queue_async_task("text_to_"..rcvid, function()
+								send_text_message (fulltext, rcvid)
+							end)
+						end
 					end
 				end
 			end
@@ -309,6 +324,7 @@ local function handle_incoming_json(args)
 		--print("handled msg "..update.message.message_id)
 		do_queued_tasks()
 		_M.last_update_id = assert(update.update_id)
+		--now handle next update in json
 	end
 end
 
