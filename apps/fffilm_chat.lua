@@ -277,6 +277,7 @@ local function handle_nontext_message(update, sender)
 	if update.message.sticker then
 		local sticker = assert(update.message.sticker)
 		local file_id = assert(sticker.file_id)
+		LOG.info("Got sticker %s from %s.", file_id, sender_id)
 		for_all_users_except(sender_id, function(rcv)
 			local rcvid = assert(rcv.id)
 			queue_async_task("sticker_to_"..rcvid, function()
