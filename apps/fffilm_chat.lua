@@ -206,7 +206,7 @@ local function user_command(user, text0)
 	elseif text == "/nick" then
 		local desired = text0:match("^/nick%s+(.*)$")
 		if not desired then
-			desired = random_name()
+			desired = "?"..random_name()
 		elseif desired == "*" then
 			if registered_users[user.id] then
 				desired = "*" .. assert(registered_users[user.id].name)
