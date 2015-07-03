@@ -20,7 +20,7 @@ local function main()
 	while true do
 		log(os.date().." ***** Rumcajs starting at "..runwhere..".")
 		if runwhere == "kompost" then
-			starter = "stdbuf -i0 -o0 -e0 "..starter.. " >> "..logfile --.." 2>&1"
+			starter = starter.. " >> "..logfile --.." 2>&1"
 		end
 		local code = os.execute(starter)
 		if int(code / 256) == 1 then --Abort, no restart

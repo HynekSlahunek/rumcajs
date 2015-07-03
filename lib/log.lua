@@ -21,6 +21,7 @@ local function main()
             local tstr = os.date("*t")
             local output = string.format("%s%02d:%02d:%02d %s", tags[id], tstr.hour, tstr.min, tstr.sec, text)
             print(output)
+            io.flush()
         end
     end
 end
