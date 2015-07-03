@@ -66,26 +66,41 @@ local function telegram_post(args)
 	return txt
 end
 
-local function actually_send_messages()
-	local msgs = _M.messages_to_send or {}
-	_M.messages_to_send = {}
-	LOG.debug("Actually sending "..#msgs.." messages.")
-	TASKER.add_pthread("ffchat_message_sender", function()
-		for i, msgitem in ipairs (msgs) do
-			telegram_post(msgitem)
+local function do_queued_tasks()
+	local queue = assert(_M.queued_tasks)
+	_M.queued_tasks = {}
+	LOG.debug("Launching "..#queue.." queued tasks.")
+	TASKER.add_pthread("ffchat_queued_tasks_launcher", function()
+		for i, task in ipairs (queue) do
+			LOG.debug("%s: %s", i, (task.id or "[sync]"))
+			if task.sync_fun then
+				assert(not task.id)
+				task.sync_fun()
+			else
+				assert(task.async_fun)
+				assert(task.id)
+				TASKER.add_pthread(task.id, task.async_fun)
+			end
 		end
-		--LOG.debug("Sent messages.")
 	end)
+	LOG.debug("Queue done.")
 end
 
-local function send_message(args)
-	if not _M.messages_to_send then
-		_M.messages_to_send = {}
-	end
-	assert(args.receiver)
-	assert(args.text)
-	local data = {chat_id = args.receiver, text = args.text}
-	table.insert(_M.messages_to_send, {data=data, method = "sendMessage"})
+local function queue_sync_task(fun)
+	table.insert(_M.queued_tasks, {sync_fun = fun})
+	assert(type(fun) == "function", "Fun is not function.")
+end
+
+local function queue_async_task(id, fun)
+	assert(type(id) == "string", "Id is not string.")
+	assert(type(fun) == "function", "Fun is not function.")
+	table.insert(_M.queued_tasks, {async_fun = fun, id = id})
+end
+
+local function send_text_message(text, receiver)
+	assert(type(text)=="string", "Text is not string.")
+	assert(type(receiver) == "number", "Receiver is not number.")
+	return telegram_post {method = "sendMessage", data = {chat_id = receiver, text = text}}
 end
 --[[
 {"ok":true,"result":[
@@ -167,7 +182,9 @@ end
 
 local function user_command(user, text0)
 	local send_text = function(txt)
-		send_message{receiver = assert(user.id), text = txt}
+		queue_sync_task(function()
+			send_text_message(txt, assert(user.id))
+		end)
 	end
 	local text = text0:match("^(/%S+)") or "/"
 	local history_num = 5
@@ -244,6 +261,10 @@ local function handle_incoming_json(args)
 		return
 	end
 	for i, update in ipairs(result) do
+		if not update.message.text then
+			LOG.warn("No text message found: "..jsontxt)
+		end
+
 		local msgtxt = update.message.text or "/UnsupportedMessageVole"
 		local sender_id = assert(update.message.from.id)
 		LOG.info("Got text message from "..sender_id..": "..msgtxt)
@@ -275,13 +296,15 @@ local function handle_incoming_json(args)
 				end
 				for rcvid, rcv in pairs(_M.users) do
 					if rcv and not (rcv.quiet) and not excluded[rcvid] then
-						send_message {receiver = rcvid, text = fulltext}
+						queue_async_task("text_to_"..rcvid, function()
+							send_text_message (fulltext, rcvid)
+						end)
 					end
 				end
 			end
 		end
 		--print("handled msg "..update.message.message_id)
-		actually_send_messages()
+		do_queued_tasks()
 		_M.last_update_id = assert(update.update_id)
 	end
 end
@@ -290,6 +313,7 @@ _M.start = function()
 	_M.last_update_id = false
 	_M.users = SERIALIZE.load(USERS_FILENAME) or {}
 	_M.history = SERIALIZE.load(HISTORY_FILENAME) or {}
+	_M.queued_tasks = {}
 	local CJSON = require("cjson.safe") --lua-cjson
 	LOG.debug("Starting telegram polling")
 
