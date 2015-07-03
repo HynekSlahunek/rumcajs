@@ -60,7 +60,8 @@ local function telegram_post(args)
 	else
 		local ok = txt:match('"ok":true')
 		if not ok then
-			LOG.warn("-------------Post didn't get json OK but: "..txt.."\n--------The post was: "..encoded)
+			LOG.warn("Post didn't get json OK but: %s", txt)
+			LOG.warn("The post was: %s", encoded)
 		end
 	end
 	return txt
@@ -84,7 +85,7 @@ local function do_queued_tasks()
 				nasync = nasync + 1
 			end
 		end
-		LOG.debug("Launched %s queued tasks (%s async, %s sync).",nasync+nsync,nasync,nsync)
+		LOG.debug("Launched %s queued tasks (%s async, %s sync).", nasync+nsync, nasync, nsync)
 	end)
 end
 
@@ -103,6 +104,24 @@ local function send_text_message(text, receiver)
 	assert(type(text)=="string", "Text is not string.")
 	assert(type(receiver) == "number", "Receiver is not number.")
 	return telegram_post {method = "sendMessage", data = {chat_id = receiver, text = text}}
+end
+
+local function for_all_users_except(exclude, fun)
+	assert(type(fun)=="function", "Fun is not a function")
+	exclude = exclude or -1
+	assert(type(exclude)=="number")
+	local excluded = {}
+	if (_M.users[exclude] or {}).noecho then
+		excluded[exclude] = true
+	end
+	local num = 0
+	for rcvid, rcv in pairs(_M.users) do
+		if rcv and not (rcv.quiet) and not excluded[rcvid] then
+			fun(rcv)
+			num = num + 1
+		end
+	end
+	return num --how many of them were done
 end
 --[[
 {"ok":true,"result":[
@@ -193,7 +212,7 @@ local function user_command(user, text0)
 	local registered_users = SERIALIZE.load(MY_DIR.."registered_users.txt")
 	local is_god = (registered_users[user.id] or {}).is_god
 	if text == "/" or text == "/start" then
-		reply_text("> Příkazy jsou následující:\n/hist = Vypíše posledních "..history_num.." příspěvků\n/nick xy = Změní tvou přezdívku na xy (nebo dá náhodnou, pokud vynecháš 'xy')\n/bye = Přestane ti posílat všechny zprávy z chatu\n/echo = Přestane ti posílat zpět tebou napsané veřejné zprávy.\n> Nyní máš přezdívku "..user.name..".")
+		reply_text("> Příkazy jsou následující:\n/hist = Vypíše posledních "..history_num.." příspěvků\n/nick xy = Změní tvou přezdívku na xy (nebo dá náhodnou, pokud vynecháš 'xy')\n/bye = Přestane ti posílat všechny zprávy z chatu\n/echo = Začne ti pro kontrolu posílat zpět tebou napsané veřejné zprávy.\n> Nyní máš přezdívku "..user.name..".")
 	elseif text == "/hist" then
 		reply_text("> Posledních "..history_num.." příspěvků:")
 		local history = _M.history
@@ -258,7 +277,14 @@ local function handle_nontext_message(update, sender)
 	if update.message.sticker then
 		local sticker = assert(update.message.sticker)
 		local file_id = assert(sticker.file_id)
-		reply_text ("> Stickers coming soon...")
+		for_all_users_except(sender_id, function(rcv)
+			local rcvid = assert(rcv.id)
+			queue_async_task("sticker_to_"..rcvid, function()
+				telegram_post{method = "sendSticker", data ={chat_id = rcvid, sticker = file_id}}
+				send_text_message("^^^ Sticker od "..sender.name.." ^^^", rcvid)
+			end)
+		end)
+		update_history("<STICKER> od "..sender.name..": file_id "..file_id)
 	else
 		reply_text("> Tento druh souboru není (zatím) podporován.")
 	end
@@ -281,7 +307,7 @@ local function handle_incoming_json(args)
 
 		local user = _M.users[sender_id]
 		if not user then
-			user = {name = random_name(), id = sender_id}
+			user = {name = random_name(), id = sender_id, noecho = true}
 			_M.users[sender_id] = user
 		end
 		user.ts = os.time()
@@ -307,17 +333,12 @@ local function handle_incoming_json(args)
 					local fulltext = name..": "..msgtxt
 					local added = update_history(fulltext)
 					local fulltext = format_time(added.ts).hhmm.." "..fulltext
-					local excluded = {}
-					if user.noecho then
-						excluded[sender_id] = true
-					end
-					for rcvid, rcv in pairs(_M.users) do
-						if rcv and not (rcv.quiet) and not excluded[rcvid] then
-							queue_async_task("text_to_"..rcvid, function()
-								send_text_message (fulltext, rcvid)
-							end)
-						end
-					end
+					for_all_users_except(sender_id, function(rcv)
+						local rcvid = assert(rcv.id)
+						queue_async_task("text_to_"..rcvid, function()
+							send_text_message(fulltext, rcvid)
+						end)
+					end)
 				end
 			end
 		end
