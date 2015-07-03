@@ -16,7 +16,7 @@ local function main()
                 return str:format(a,b,c,d,e,f,g,h,i,j)
             end)
             if not stat then
-                text = text:gsub("%%","%%%%")
+                text = str
             end
             local tstr = os.date("*t")
             local output = string.format("%s%02d:%02d:%02d %s", tags[id], tstr.hour, tstr.min, tstr.sec, text)
