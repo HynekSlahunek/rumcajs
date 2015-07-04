@@ -60,7 +60,9 @@ local function telegram_post(args)
 	else
 		local ok = txt:match('"ok":true')
 		if not ok then
-			if not txt:match(":400.*unknown error") then --hack to ignore 400 status when recipient is blocking the bot
+			if txt:match(":400.*PEER_ID_INVALID") then
+				LOG.info("Receiver %s: PEER_ID_INVALID",data.chat_id or "?")
+			else
 				LOG.warn("Post didn't get json OK but: %s", txt)
 				LOG.warn("The post was: %s", encoded)
 			end
@@ -263,7 +265,7 @@ local function user_command(user, text0)
 		local latest = txt:match("commit (%w+)")
 		local running = (arg[1] or "-versionUNKNOWN"):match("version(%w+)")
 		if running ~= latest then
-			txt = txt .. "\nWARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nNot running latest but "..running
+			txt = txt .. "\n!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!\nNot running latest but "..running
 		end
 		reply_text(txt)
 	elseif is_god and text == "/restart" then
