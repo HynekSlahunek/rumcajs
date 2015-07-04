@@ -300,6 +300,20 @@ local function handle_nontext_message(update, sender)
 			end)
 		end)
 		update_history("<STICKER> od "..sender.name..": file_id "..file_id)
+	elseif update.message.photo then
+		local photo = assert(update.message.photo)
+		table.sort(photo, function(a,b) return a.width > b.width end)
+		--print(SERIALIZE.serialize(photo))
+		local file_id = assert(photo[1].file_id)
+		LOG.info("Got photo %s from %s.", file_id, sender_id)
+		for_all_users_except(sender_id, function(rcv)
+			local rcvid = assert(rcv.id)
+			queue_async_task("sticker_to_"..rcvid, function()
+				telegram_post{method = "sendPhoto", data ={chat_id = rcvid, photo = file_id, caption = "^^^ Fotka od "..sender.name.." ^^^"}}
+				--send_text_message("^^^ Sticker od "..sender.name.." ^^^", rcvid)
+			end)
+		end)
+		update_history("<PHOTO> od "..sender.name..": file_id "..file_id)
 	else
 		reply_text("> Tento druh souboru není (zatím) podporován.")
 	end
