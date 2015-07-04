@@ -3,7 +3,7 @@
 local function main()
 	local logfile = "/var/tmp/rumcajs.log"
 	local dir = "/home/fuxoft/work/web/private/rumcajs/"
-	local starter = dir .. "start.lua"
+	local starter0 = dir .. "start.lua"
 
 	local runwhere = assert(dofile("/home/fuxoft/.private.lua").runwhere)
 
@@ -24,7 +24,7 @@ local function main()
 		fd:close()
 		local version = txt:match("%w+")
 		assert(#version == 40)
-		starter = starter .. " -version"..version
+		local starter = starter0 .. " -version"..version
 		log(os.date().." ***** Rumcajs starting at "..runwhere..", ver. "..version)
 		if runwhere == "kompost" then
 			starter = starter.. " >> "..logfile --.." 2>&1"

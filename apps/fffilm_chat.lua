@@ -265,7 +265,7 @@ local function user_command(user, text0)
 		local latest = txt:match("commit (%w+)")
 		local running = (arg[1] or "-versionUNKNOWN"):match("version(%w+)")
 		if running ~= latest then
-			txt = txt .. "\n!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!\nNot running latest but "..running
+			txt = "!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!\nNot running latest but "..running.."\n"..txt
 		end
 		reply_text(txt)
 	elseif is_god and text == "/restart" then
