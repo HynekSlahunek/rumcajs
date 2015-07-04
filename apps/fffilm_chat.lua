@@ -60,8 +60,10 @@ local function telegram_post(args)
 	else
 		local ok = txt:match('"ok":true')
 		if not ok then
-			LOG.warn("Post didn't get json OK but: %s", txt)
-			LOG.warn("The post was: %s", encoded)
+			if not txt:match(":400.*unknown error") then --hack to ignore 400 status when recipient is blocking the bot
+				LOG.warn("Post didn't get json OK but: %s", txt)
+				LOG.warn("The post was: %s", encoded)
+			end
 		end
 	end
 	return txt
