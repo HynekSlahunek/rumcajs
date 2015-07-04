@@ -260,6 +260,11 @@ local function user_command(user, text0)
 		local fd = io.popen("git --git-dir "..RUMCAJS.root_dir..".git log -2")
 		local txt = fd:read("*a")
 		fd:close()
+		local latest = txt:match("commit (%w+)")
+		local running = (arg[1] or "-versionUNKNOWN"):match("version(%w+)")
+		if running ~= latest then
+			txt = txt .. "\nWARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nNot running latest but "..running
+		end
 		reply_text(txt)
 	elseif is_god and text == "/restart" then
 		LOG.info("God command = restart")

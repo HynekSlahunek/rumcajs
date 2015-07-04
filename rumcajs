@@ -2,7 +2,8 @@
 
 local function main()
 	local logfile = "/var/tmp/rumcajs.log"
-	local starter = "/home/fuxoft/work/web/private/rumcajs/start.lua"
+	local dir = "/home/fuxoft/work/web/private/rumcajs/"
+	local starter = dir .. "start.lua"
 
 	local runwhere = assert(dofile("/home/fuxoft/.private.lua").runwhere)
 
@@ -18,7 +19,13 @@ local function main()
 	end
 
 	while true do
-		log(os.date().." ***** Rumcajs starting at "..runwhere..".")
+		local fd = io.popen("git --git-dir "..dir..".git rev-parse HEAD")
+		local txt = fd:read("*a")
+		fd:close()
+		local version = txt:match("%w+")
+		assert(#version == 40)
+		starter = starter .. " -version"..version
+		log(os.date().." ***** Rumcajs starting at "..runwhere..", ver. "..version)
 		if runwhere == "kompost" then
 			starter = starter.. " >> "..logfile --.." 2>&1"
 		end
