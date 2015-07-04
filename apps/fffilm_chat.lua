@@ -256,6 +256,11 @@ local function user_command(user, text0)
 			reply_text("> Tebou odeslané veřejné zprávy nyní NEBUDEŠ dostávat pro kontrolu zpět. Pokud je opět budeš chtít dostávat, použij znovu příkaz /echo.")
 		end
 		user.noecho = not user.noecho
+	elseif text == "/ver" then
+		local fd = io.popen("git --git-dir "..RUMCAJS.root_dir..".git log -2")
+		local txt = fd:read("*a")
+		fd:close()
+		reply_text(txt)
 	elseif is_god and text == "/restart" then
 		LOG.info("God command = restart")
 		_M.please_restart = 101
