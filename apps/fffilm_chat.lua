@@ -321,18 +321,19 @@ local function handle_incoming_json(args)
 		user.ts = os.time()
 		SERIALIZE.save(_M.users,USERS_FILENAME)
 
-		local msgtxt = update.message.text
-		if not msgtxt then
-			handle_nontext_message(update, user)
-		else --text message
-			LOG.info("Got text message from "..sender_id..": "..msgtxt)
-
-			local banned = SERIALIZE.load(MY_DIR.."banned_users.txt")
-			if banned[sender_id] then
-				local text = "> "..(banned[sender_id].message or "Problem. Please contact admin.")
-				send_message{receiver = sender_id, text = text}
-				LOG.info("User "..sender_id.. " banned: "..text)
-			else
+		local banned = SERIALIZE.load(MY_DIR.."banned_users.txt")
+		if banned[sender_id] then
+			local text = "> "..(banned[sender_id].message or "Problem. Please contact admin.")
+			queue_async_task("ban_sender_"..sender_id,function()
+				send_text_message(text, sender_id)
+			end)
+			LOG.info("Banned user "..sender_id.. " received: "..text)
+		else --not banned
+			local msgtxt = update.message.text
+			if not msgtxt then
+				handle_nontext_message(update, user)
+			else --text message
+				LOG.info("Got text message from "..sender_id..": "..msgtxt)
 
 				if msgtxt:match("^/") then
 					user_command(user, msgtxt)
