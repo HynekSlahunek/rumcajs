@@ -260,7 +260,7 @@ local function user_command(user, text0)
 		end
 		user.noecho = not user.noecho
 	elseif text == "/ver" then
-		local fd = io.popen("git --git-dir "..RUMCAJS.root_dir..".git log master -3")
+		local fd = io.popen("git --git-dir "..RUMCAJS.root_dir..".git log --oneline master -10")
 		local txt = fd:read("*a")
 		fd:close()
 		local latest = txt:match("commit (%w+)")
