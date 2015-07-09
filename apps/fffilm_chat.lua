@@ -259,13 +259,13 @@ local function user_command(user, text0)
 		end
 		user.noecho = not user.noecho
 	elseif text == "/ver" then
-		local fd = io.popen("git --git-dir "..RUMCAJS.root_dir..".git log -2")
+		local fd = io.popen("git --git-dir "..RUMCAJS.root_dir..".git log master -3")
 		local txt = fd:read("*a")
 		fd:close()
 		local latest = txt:match("commit (%w+)")
 		local running = (arg[1] or "-versionUNKNOWN"):match("version(%w+)")
 		if running ~= latest then
-			txt = "!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!\nNot running latest but "..running.."\n!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!\n\n"..txt
+			txt = "!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!\nNot running latest master but "..running.."\n!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!\n\n"..txt
 		end
 		reply_text(txt)
 	elseif is_god and text == "/restart" then
