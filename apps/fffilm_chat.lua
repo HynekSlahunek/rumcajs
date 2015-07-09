@@ -4,6 +4,7 @@ local MY_DIR = RUMCAJS.app_dir.."fffilm_chat/"
 local HISTORY_FILENAME = "/var/tmp/fuxoft_rumcajs_ffchat_history.txt"
 local USERS_FILENAME = "/var/tmp/fuxoft_rumcajs_ffchat_users.txt"
 local SERIALIZE = dofile("/home/fuxoft/work/web/private/lib/serialize.lua")
+local CJSON = require("cjson.safe") --lua-cjson
 local TASKER = require("tasker")
 
 
@@ -384,7 +385,6 @@ _M.start = function()
 	_M.users = SERIALIZE.load(USERS_FILENAME) or {}
 	_M.history = SERIALIZE.load(HISTORY_FILENAME) or {}
 	_M.queued_tasks = {}
-	local CJSON = require("cjson.safe") --lua-cjson
 	LOG.debug("Starting telegram polling")
 
 	while true do
