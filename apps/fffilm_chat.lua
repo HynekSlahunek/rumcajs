@@ -355,7 +355,7 @@ local function handle_incoming_json(args)
 			if not msgtxt then
 				handle_nontext_message(update, user)
 			else --text message
-				LOG.info("Got text message from "..sender_id..": "..msgtxt)
+				LOG.info("Text msg from %s (%s): %s",user.name, user.id, msgtxt)
 
 				if msgtxt:match("^/") then
 					user_command(user, msgtxt)
