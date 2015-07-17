@@ -10,9 +10,9 @@ _M.loop = assert(COPAS.loop)
 _M.add_thread = assert(COPAS.addthread)
 _M.http_request = function(a,b,c,d,e,f,g,h)
     if type(a) == "string" then
-        LOG.debug("Resolving:%s",a)
+        --LOG.debug("Resolving:%s",a)
         a = DNS.resolve_url(a)
-        LOG.debug("Resolved: %s",a)
+        --LOG.debug("Resolved: %s",a)
     end
     return require("copas.http").request(a,b,c,d,e,f,g,h)
 end
