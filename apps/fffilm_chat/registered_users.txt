@@ -1,4 +1,4 @@
 return {
-	[70045183] = {name = "FrantišekFuka", is_god = true},
+	[70045183] = {name = "FrantišekFuka", is_god = false},
 	[108025781] = {name = "Mimamoru"},
 }
