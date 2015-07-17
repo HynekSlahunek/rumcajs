@@ -59,14 +59,14 @@ local function telegram_post(args)
 	if not stat == 200 then
 		LOG.warn("Post status is not 200. Got: "..tostring(txt).."/"..tostring(stat))
 	else
-		local ok = txt:match('"ok":true')
+		local json = CJSON.decode(txt)
+		local ok = json.ok
 		if not ok then
-			if txt:match(":400.*PEER_ID_INVALID") then
-				LOG.info("Receiver %s: PEER_ID_INVALID",data.chat_id or "?")
-			else
-				LOG.warn("Post didn't get json OK but: %s", txt)
-				LOG.warn("The post was: %s", encoded)
-			end
+			local errcode = json.error_code or "???"
+			local desc = json.description or "?????"
+			local receiver = data.chat_id or "???"
+			LOG.warn("Receiver %s error %s: %s", receiver, errcode, desc)
+			return false, errcode
 		end
 	end
 	return txt
@@ -108,7 +108,23 @@ end
 local function send_text_message(text, receiver)
 	assert(type(text)=="string", "Text is not string.")
 	assert(type(receiver) == "number", "Receiver is not number.")
-	return telegram_post {method = "sendMessage", data = {chat_id = receiver, text = text}}
+	local stat, code = telegram_post {method = "sendMessage", data = {chat_id = receiver, text = text}}
+	if not stat then --Sending was NOT ok
+		local user = _M.users[receiver]
+		if user then
+			local ostime = os.time()
+			if not user.invalid_since then
+				user.invalid_since = ostime
+			else
+				local invalid_days = (ostime - user.invalid_since) / (60*60*24)
+				LOG.debug("User %s invalid for %s days", receiver, invalid_days)
+				if invalid_days > 7.5 then
+					LOG.info("User %s (%s) invalid for %s days, deleting.",receiver,user.name or "???",invalid_days)
+					_M.users[receiver] = false
+				end
+			end
+		end
+	end
 end
 
 local function for_all_users_except(exclude, fun)
