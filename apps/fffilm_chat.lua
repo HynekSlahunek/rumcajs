@@ -118,7 +118,7 @@ local function send_text_message(text, receiver)
 			else
 				local invalid_days = (ostime - user.invalid_since) / (60*60*24)
 				LOG.debug("User %s invalid for %s days", receiver, invalid_days)
-				if invalid_days > 7.5 then
+				if invalid_days > 1.5 then
 					LOG.info("User %s (%s) invalid for %s days, deleting.",receiver,user.name or "???",invalid_days)
 					_M.users[receiver] = false
 				end
