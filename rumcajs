@@ -19,7 +19,7 @@ local function main()
 	end
 
 	while true do
-		local fd = io.popen("git --git-dir "..dir..".git rev-parse master")
+		local fd = io.popen("git --git-dir "..dir..".git rev-parse HEAD")
 		local txt = fd:read("*a")
 		fd:close()
 		local version = txt:match("%w+")
